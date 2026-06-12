@@ -1,0 +1,133 @@
+openapi: 3.0.3
+info:
+  title: Fraud Alert Dashboard API
+  version: 1.0.0
+  description: REST and SSE API for transaction intake and real-time fraud alerts.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/transactions:
+    post:
+      summary: Accept a transaction for asynchronous fraud evaluation
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+            examples:
+              highRisk:
+                value:
+                  accountId: A123
+                  amount: 15000
+                  merchant: Tesla
+                  location: US
+      responses:
+        '202':
+          description: Transaction accepted and event published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionAcceptedResponse'
+        '400':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '503':
+          description: Kafka unavailable or event could not be published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/alerts/stream:
+    get:
+      summary: Subscribe to real-time fraud alerts using Server-Sent Events
+      operationId: streamAlerts
+      responses:
+        '200':
+          description: SSE stream of fraud-alert events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                fraudAlert:
+                  value: |
+                    event: fraud-alert
+                    data: {"transactionId":"6d18...","accountId":"A123","amount":15000,"merchant":"Tesla","location":"US","riskLevel":"HIGH_RISK","reason":"Amount exceeds 10000","evaluatedAt":"2026-06-12T14:30:00Z"}
+components:
+  schemas:
+    TransactionRequest:
+      type: object
+      required: [accountId, amount, merchant, location]
+      properties:
+        accountId:
+          type: string
+          minLength: 1
+          example: A123
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+          example: 15000
+        merchant:
+          type: string
+          minLength: 1
+          example: Tesla
+        location:
+          type: string
+          minLength: 1
+          example: US
+    TransactionAcceptedResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: ACCEPTED
+        acceptedAt:
+          type: string
+          format: date-time
+    FraudEvaluatedEvent:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+        amount:
+          type: number
+        merchant:
+          type: string
+        location:
+          type: string
+        riskLevel:
+          type: string
+          enum: [LOW_RISK, MEDIUM_RISK, HIGH_RISK]
+        reason:
+          type: string
+        evaluatedAt:
+          type: string
+          format: date-time
+    ApiError:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string

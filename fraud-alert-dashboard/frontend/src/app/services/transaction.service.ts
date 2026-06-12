@@ -1,0 +1,2 @@
+import { Injectable } from '@angular/core'; import { HttpClient } from '@angular/common/http'; import { Observable } from 'rxjs'; import { environment } from '../../environments/environment'; import { TransactionAcceptedResponse, TransactionRequest } from '../models/fraud-alert.model';
+@Injectable({providedIn:'root'}) export class TransactionService { constructor(private http:HttpClient){} submit(request:TransactionRequest):Observable<TransactionAcceptedResponse>{ return this.http.post<TransactionAcceptedResponse>(`${environment.apiBaseUrl}/api/transactions`, request); } }
